@@ -1,0 +1,3 @@
+EggOmatic
+=========
+my first script
