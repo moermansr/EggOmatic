@@ -48,9 +48,9 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 	public final Area BankArea = new Area(new Tile[] { new Tile(3092, 3500, 0),
 			new Tile(3092, 3496, 0), new Tile(3098, 3496, 0),
 			new Tile(3098, 3500, 0) });
-	public final Area SpawnArea = new Area(new Tile[] {
-			new Tile(3099, 3501, 0), new Tile(3098, 3495, 0),
-			new Tile(3103, 3497, 0), new Tile(3103, 3501, 0) });
+	public final Area SpawnArea = new Area(new Tile[] { new Tile(3098, 3501, 0), new Tile(3104, 3501, 0),
+					new Tile(3104, 3487, 0), 
+					new Tile(3098, 3487, 0) });
 	public final Area ObeliskArea = new Area(new Tile[] {
 			new Tile(3112, 3520, 0), new Tile(3112, 3499, 0),
 			new Tile(3132, 3499, 0), new Tile(3132, 3520, 0),
