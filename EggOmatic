@@ -150,6 +150,7 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 				System.out.println("Walking");
 				traverse(BankPath, false);
 				Task.sleep(500, 700);
+				firstTime = true;
 			}
 			if (isSummoned()
 					&& BankArea.contains(Players.getLocal().getLocation())) {
