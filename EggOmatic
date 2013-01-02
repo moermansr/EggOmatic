@@ -1,0 +1,471 @@
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.Graphics;
+import java.awt.Point;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.URL;
+import javax.imageio.ImageIO;
+import java.io.IOException;
+import java.awt.Image;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.Rectangle;
+
+import org.powerbot.core.event.listeners.PaintListener;
+import org.powerbot.core.script.ActiveScript;
+import org.powerbot.core.script.job.Task;
+import org.powerbot.core.script.job.state.Node;
+import org.powerbot.core.script.job.state.Tree;
+import org.powerbot.game.api.Manifest;
+import org.powerbot.game.api.methods.Calculations;
+import org.powerbot.game.api.methods.Game;
+import org.powerbot.game.api.methods.Walking;
+import org.powerbot.game.api.methods.Widgets;
+import org.powerbot.game.api.methods.input.Mouse;
+import org.powerbot.game.api.methods.interactive.Players;
+import org.powerbot.game.api.methods.node.GroundItems;
+import org.powerbot.game.api.methods.node.SceneEntities;
+import org.powerbot.game.api.methods.tab.Inventory;
+import org.powerbot.game.api.methods.tab.Summoning;
+import org.powerbot.game.api.methods.widget.Bank;
+import org.powerbot.game.api.methods.widget.Camera;
+import org.powerbot.game.api.util.Random;
+import org.powerbot.game.api.util.Time;
+import org.powerbot.game.api.util.Timer;
+import org.powerbot.game.api.wrappers.Area;
+import org.powerbot.game.api.wrappers.Tile;
+import org.powerbot.game.api.wrappers.map.TilePath;
+import org.powerbot.game.api.wrappers.node.GroundItem;
+import org.powerbot.game.api.wrappers.node.SceneObject;
+import org.powerbot.game.api.wrappers.widget.WidgetChild;
+import org.powerbot.game.api.methods.Settings;
+
+@Manifest(authors = "Snipa", name = "EggOmatic", version = 1.0)
+public class EggOmatic extends ActiveScript implements PaintListener,
+  	MouseListener {
+	// Area's
+	public final Area BankArea = new Area(new Tile[] { new Tile(3092, 3500, 0),
+			new Tile(3092, 3496, 0), new Tile(3098, 3496, 0),
+			new Tile(3098, 3500, 0) });
+	public final Area SpawnArea = new Area(new Tile[] {
+			new Tile(3099, 3501, 0), new Tile(3098, 3495, 0),
+			new Tile(3103, 3497, 0), new Tile(3103, 3501, 0) });
+	public final Area ObeliskArea = new Area(new Tile[] {
+			new Tile(3112, 3520, 0), new Tile(3112, 3499, 0),
+			new Tile(3132, 3499, 0), new Tile(3132, 3520, 0),
+			new Tile(3112, 3520, 0) });
+	// Paths
+	public final Tile[] RechargePath = new Tile[] { new Tile(3122, 3514, 0),
+			new Tile(3114, 3506, 0), new Tile(3100, 3498, 0) };
+	public final Tile[] BankPath = new Tile[] { new Tile(3095, 3497, 0),
+			new Tile(3100, 3497, 0) };
+	public final Tile[] LootPath = new Tile[] { new Tile(3100, 3497, 0) };
+
+	// Variables
+	public int GoldEarned = 0;
+	public int EggsLooted = 0;
+	public int casttimes = 3;
+	public int priceEgg = 0;
+	public double gpHr = 0.0;
+	public boolean isLooting = false;
+	public boolean hidePaint = false;
+	public boolean firstTime = false;
+	public boolean startedUp = false;
+	public Image background = getImage("http://i.imgur.com/LXxet.png");
+	public Image button = getImage("http://i.imgur.com/a8pxI.png");
+	public Rectangle open = new Rectangle(486, 309, 50, 50);
+	public Point p;
+	long startTime = System.currentTimeMillis();
+
+	private Tree jobs = null;
+
+	public void onStart() {
+		System.out.println("Preparing");
+		Mouse.setSpeed(Mouse.Speed.FAST);
+		priceEgg = Integer.parseInt(getPrice(223));
+		enableRun();
+		SceneObject Booth = SceneEntities.getNearest(42377);
+		Camera.turnTo(Booth);
+		Booth.interact("Bank");
+		while (!Bank.isOpen()) {
+			Task.sleep(50);
+		}
+		Bank.depositInventory();
+
+		Task.sleep(2000);
+		Bank.withdraw(12428, Bank.Amount.ALL);
+		Bank.close();
+		startedUp = true;
+		System.out.println("Ready");
+	}
+
+	public int loop() {
+		gpHr = (GoldEarned * 3600000D)
+				/ (int) (System.currentTimeMillis() - startTime);
+		if (jobs == null) {
+			jobs = new Tree(new Node[] { new Walk(), new Banking(), new Loot(),
+					new Recharge(), new Renew(), new Spawn() });
+		}
+		final Node job = jobs.state();
+		if (job != null && startedUp) {
+			jobs.set(job);
+			getContainer().submit(job);
+			job.join();
+			return 100;
+		}
+		return Random.nextInt(200, 300);
+	}
+
+	public class Walk extends Node {
+
+		@Override
+		public boolean activate() {
+			// Conditie
+			return ((getSummoningPoints() > 0 && ObeliskArea.contains(Players
+					.getLocal().getLocation()))
+					|| (getSummoningPoints() == 0 && !ObeliskArea
+							.contains(Players.getLocal().getLocation()))
+					|| (Inventory.getCount() == 1 && BankArea.contains(Players
+							.getLocal().getLocation())) || (isSummoned()
+					&& BankArea.contains(Players.getLocal().getLocation()) || isLooting));
+
+		}
+
+		@Override
+		public void execute() {
+
+			if (getSummoningPoints() > 0
+					&& ObeliskArea.contains(Players.getLocal().getLocation())) {
+				traverse(RechargePath, false);
+				Task.sleep(500, 700);
+			}
+			if (getSummoningPoints() == 0) {
+				System.out.println("Recharging");
+				traverse(RechargePath, true);
+				Task.sleep(500, 700);
+			}
+			if (Inventory.getCount() == 1
+					&& BankArea.contains(Players.getLocal().getLocation())) {
+				System.out.println("Walking");
+				traverse(BankPath, false);
+				Task.sleep(500, 700);
+			}
+			if (isSummoned()
+					&& BankArea.contains(Players.getLocal().getLocation())) {
+				// Walking.newTilePath(BankPath).traverse();
+				traverse(BankPath, false);
+				Task.sleep(500, 700);
+				firstTime = true;
+			}
+			if (isLooting) {
+				System.out.println("naar loot pad");
+				// Walking.newTilePath(BankPath).traverse();
+				traverse(LootPath, false);
+				Task.sleep(500, 700);
+				isLooting = false;
+			}
+
+		}
+
+	}
+
+	public class Recharge extends Node {
+
+		@Override
+		public boolean activate() {
+			// Conditie
+			return (ObeliskArea.contains(Players.getLocal().getLocation()) && getSummoningPoints() == 0);
+
+		}
+
+		@Override
+		public void execute() {
+			System.out.println("rest");
+			SceneObject Stone = SceneEntities.getNearest(29954);
+			Camera.turnTo(Stone);
+			Camera.setPitch(Random.nextInt(3, 5));
+			Stone.interact("Renew-points");
+		}
+
+	}
+
+	public class Banking extends Node {
+
+		@Override
+		public boolean activate() {
+			// Conditie
+			return (Inventory.isFull() && SpawnArea.contains(Players.getLocal()
+					.getLocation()));
+
+		}
+
+		@Override
+		public void execute() {
+			System.out.println("Banking");
+			SceneObject Booth = SceneEntities.getNearest(42377);
+			Camera.turnTo(Booth);
+			Booth.interact("Bank");
+			while (!Bank.isOpen()) {
+				Task.sleep(50);
+			}
+			Bank.deposit(223, Bank.Amount.ALL);
+			Task.sleep(500);
+			Bank.close();
+		}
+	}
+
+	public class Renew extends Node {
+
+		@Override
+		public boolean activate() {
+			// Conditie
+			return (!isSummoned() && SpawnArea.contains(Players.getLocal()
+					.getLocation()));
+
+		}
+
+		@Override
+		public void execute() {
+			System.out.println("Renewing familliar");
+			Task.sleep(300);
+			Bank.open();
+			while (!Bank.isOpen()) {
+				Task.sleep(50);
+			}
+			Bank.withdraw(12059, 1);
+			Task.sleep(300);
+			Bank.close();
+			Inventory.getItem(12059).getWidgetChild().interact("Summon");
+		}
+	}
+
+	public class Loot extends Node {
+
+		@Override
+		public boolean activate() {
+			// Conditie
+			return (GroundItems.getNearest(223) != null
+					&& SpawnArea.contains(Players.getLocal())
+					&& !Inventory.isFull() && GroundItems.getLoaded().length > 4);
+		}
+
+		@Override
+		public void execute() {
+			System.out.println("Start looting ");
+			int temp = Inventory.getCount();
+			System.out.println("Start looting " + temp);
+			isLooting = true;
+			for (GroundItem gItem : GroundItems.getLoaded()) {
+				if (gItem.getId() == 223) {
+					System.out.println("Looting egg");
+
+					// if (gItem.click(true && Inventory.getCount() == (temp +
+					// 1))) {
+					// System.out.println("egg looted");
+					// Task.sleep(Random.nextInt(500, 1000));
+					// } else {
+					// gItem.interact("Take");
+					// Task.sleep(Random.nextInt(50, 100));
+					// }
+
+					int initialCount = Inventory.getCount(true, gItem.getId());
+					Camera.turnTo(gItem);
+					Camera.setPitch(Random.nextInt(45, 60));
+					Timer timer = new Timer(3000);
+					while (timer.isRunning()
+							&& initialCount == Inventory.getCount(true,
+									gItem.getId())) {
+						gItem.interact("Take", gItem.getGroundItem().getName());
+						Task.sleep(300, 500);
+					}
+					EggsLooted++;
+					GoldEarned += (priceEgg);
+				}
+			}
+			System.out.println("Done looting ");
+		}
+	}
+
+	public class Spawn extends Node {
+
+		@Override
+		public boolean activate() {
+			// Conditie
+			return (isSummoned() && SpawnArea.contains(Players.getLocal()) && !Inventory
+					.isFull()) && Players.getLocal().isIdle();
+		}
+
+		@Override
+		public void execute() {
+			System.out.println("Spawning");
+			if (firstTime) {
+				Summoning.select("Call Follower");
+				firstTime = false;
+			}
+			// Summoning.select("cast");
+			// Summoning.cast();
+
+			for (int i = 0; i < 3; i++) {
+				Widgets.get(747, 5).click(true);
+				Task.sleep(300);
+			}
+
+		}
+
+	}
+
+	public static int getSummoningPoints() {
+		final WidgetChild points = Widgets.get(747, 23);
+		if (points != null && points.validate()) {
+			return Integer.parseInt(points.getText());
+		}
+		return -1;
+	}
+
+	public static int getTimeLeft() {
+		return Math.round((Settings.get(1786) / (float) 2.13333333333));
+	}
+
+	public void runTo(Tile[] path) {
+		for (Tile tile : path) {
+			Walking.walk(tile);
+			// or you could use on map
+			tile.clickOnMap();
+		}
+	}
+
+	public static boolean traverse(final Tile[] tiles, final boolean reverse) {
+		final TilePath path = reverse ? new TilePath(tiles).reverse()
+				: new TilePath(tiles);
+		final Tile next = path.getNext();
+		if (next != null) {
+			if (next.equals(path.getEnd())) {
+				if (Calculations.distanceTo(next) <= 2)
+					return true;
+			}
+
+			Walking.walk(next);
+			final Timer t = new Timer(Random.nextInt(2000, 3000));
+			while (t.isRunning()
+					&& Calculations.distance(next.getLocation(), Players
+							.getLocal().getLocation()) >= 3) {
+				t.reset();
+				Task.sleep(10);
+			}
+		}
+		return false;
+	}
+
+	public static boolean enableRun() {
+		if (!(Settings.get(463) == 1)) {
+			Widgets.get(750, 2).click(true);
+		}
+		return true;
+	}
+
+	public static boolean isSummoned() {
+		return (getTimeLeft() > 0);
+	}
+
+	public void onRepaint(Graphics g) {
+		if (Game.getClientState() == 11) {
+			g.drawImage(button, 486, 330, null);
+			g.drawString("Toggle paint", 440, 315);
+			if (!hidePaint) {
+				g.drawImage(background, 0, 385, null);
+				Font font1 = new Font("Algerian", 0, 16);
+				Font font2 = new Font("Algerian", 0, 20);
+
+				g.setColor(Color.red);
+				g.drawLine(Mouse.getX() - 5, Mouse.getY() - 5,
+						Mouse.getX() + 5, Mouse.getY() + 5);
+				g.drawLine(Mouse.getX() - 5, Mouse.getY() + 5,
+						Mouse.getX() + 5, Mouse.getY() - 5);
+
+				g.setColor(Color.WHITE);
+				g.setFont(font1);
+				g.drawString(String.valueOf(GoldEarned), 250, 460);
+				g.drawString(String.valueOf(priceEgg), 410, 460);
+				g.drawString(String.valueOf(EggsLooted), 435, 421);
+				g.drawString(
+						Time.format((System.currentTimeMillis() - startTime)),
+						250, 421);
+				g.setFont(font2);
+				g.drawString(String.valueOf((int) gpHr), 325, 500);
+			} else {
+				g.drawImage(button, 486, 330, null);
+			}
+		}
+
+	}
+
+	public String getPrice(int itemID) {
+		try {
+			String[] info = { "0", "0" };
+			final URL url = new URL(
+					"http://www.tip.it/runescape/index.php?gec&itemid="
+							+ itemID);
+			final BufferedReader br = new BufferedReader(new InputStreamReader(
+					url.openStream()));
+			String input;
+			while ((input = br.readLine()) != null) {
+				if (input.startsWith("<h2>")) {
+					info[0] = input.substring(4, input.length() - 5);
+				}
+				if (input
+						.startsWith("<tr><td colspan=\"4\"><b>Current Market Price: </b>")) {
+					info[1] = input.substring(49, input.lastIndexOf("gp"))
+							.replaceAll(",", "");
+					return info[1];
+				}
+			}
+		} catch (final Exception ignored) {
+		}
+		return null;
+	}
+
+	private Image getImage(String url) {
+		try {
+			return ImageIO.read(new URL(url));
+		} catch (IOException e) {
+			return null;
+		}
+	}
+
+	public void mouseClicked(MouseEvent e) {
+		p = e.getPoint();
+		if (open.contains(p) && !hidePaint) {
+			hidePaint = true;
+			button = getImage("http://i.imgur.com/a8pxI.png");
+		} else if (open.contains(p) && hidePaint) {
+			hidePaint = false;
+			button = getImage("http://i.imgur.com/fW50S.png");
+		}
+	}
+
+	@Override
+	public void mouseEntered(MouseEvent arg0) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void mouseExited(MouseEvent arg0) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void mousePressed(MouseEvent arg0) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void mouseReleased(MouseEvent arg0) {
+		// TODO Auto-generated method stub
+
+	}
+
+}
