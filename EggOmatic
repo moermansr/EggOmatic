@@ -91,9 +91,10 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 		while (!Bank.isOpen()) {
 			Task.sleep(50);
 		}
-		Bank.depositInventory();
-
-		Task.sleep(2000);
+		if(Inventory.getCount() != 0){
+			Bank.depositInventory();
+		}
+		Task.sleep(1000);
 		Bank.withdraw(12428, Bank.Amount.ALL);
 		Bank.close();
 		startedUp = true;
@@ -226,14 +227,17 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 		@Override
 		public void execute() {
 			System.out.println("Renewing familliar");
-			Task.sleep(300);
-			Bank.open();
-			while (!Bank.isOpen()) {
-				Task.sleep(50);
+			if(!(Inventory.getCount(12059) > 0)){
+				Task.sleep(300);
+				Bank.open();
+				while (!Bank.isOpen()) {
+					Task.sleep(50);
+				}
+				Bank.withdraw(12059, 1);
+				Task.sleep(300);
+				Bank.close();
 			}
-			Bank.withdraw(12059, 1);
-			Task.sleep(300);
-			Bank.close();
+			Task.sleep(50);
 			Inventory.getItem(12059).getWidgetChild().interact("Summon");
 		}
 	}
