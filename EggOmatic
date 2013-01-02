@@ -228,6 +228,7 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 		public void execute() {
 			System.out.println("Renewing familliar");
 			if(!(Inventory.getCount(12059) > 0)){
+				System.out.println("opening bank");
 				Task.sleep(300);
 				Bank.open();
 				while (!Bank.isOpen()) {
