@@ -43,14 +43,14 @@ import org.powerbot.game.api.methods.Settings;
 
 @Manifest(authors = "Snipa", name = "EggOmatic", version = 1.0)
 public class EggOmatic extends ActiveScript implements PaintListener,
-  	MouseListener {
+		MouseListener {
 	// Area's
 	public final Area BankArea = new Area(new Tile[] { new Tile(3092, 3500, 0),
 			new Tile(3092, 3496, 0), new Tile(3098, 3496, 0),
 			new Tile(3098, 3500, 0) });
-	public final Area SpawnArea = new Area(new Tile[] { new Tile(3098, 3501, 0), new Tile(3104, 3501, 0),
-					new Tile(3104, 3487, 0), 
-					new Tile(3098, 3487, 0) });
+	public final Area SpawnArea = new Area(new Tile[] {
+			new Tile(3099, 3501, 0), new Tile(3098, 3495, 0),
+			new Tile(3103, 3497, 0), new Tile(3103, 3501, 0) });
 	public final Area ObeliskArea = new Area(new Tile[] {
 			new Tile(3112, 3520, 0), new Tile(3112, 3499, 0),
 			new Tile(3132, 3499, 0), new Tile(3132, 3520, 0),
@@ -154,14 +154,11 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 			}
 			if (isSummoned()
 					&& BankArea.contains(Players.getLocal().getLocation())) {
-				// Walking.newTilePath(BankPath).traverse();
 				traverse(BankPath, false);
 				Task.sleep(500, 700);
 				firstTime = true;
 			}
 			if (isLooting) {
-				System.out.println("naar loot pad");
-				// Walking.newTilePath(BankPath).traverse();
 				traverse(LootPath, false);
 				Task.sleep(500, 700);
 				isLooting = false;
@@ -221,8 +218,8 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 		@Override
 		public boolean activate() {
 			// Conditie
-			return (!isSummoned() && SpawnArea.contains(Players.getLocal()
-					.getLocation()));
+			return (!isSummoned() && (SpawnArea.contains(Players.getLocal()
+					.getLocation()) || BankArea.contains(Players.getLocal())));
 
 		}
 
@@ -248,7 +245,7 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 			// Conditie
 			return (GroundItems.getNearest(223) != null
 					&& SpawnArea.contains(Players.getLocal())
-					&& !Inventory.isFull() && GroundItems.getLoaded().length > 4);
+					&& !Inventory.isFull() && GroundItems.getLoaded(10,223).length > 4);
 		}
 
 		@Override
@@ -257,33 +254,24 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 			int temp = Inventory.getCount();
 			System.out.println("Start looting " + temp);
 			isLooting = true;
-			for (GroundItem gItem : GroundItems.getLoaded()) {
-				if (gItem.getId() == 223) {
-					System.out.println("Looting egg");
-
-					// if (gItem.click(true && Inventory.getCount() == (temp +
-					// 1))) {
-					// System.out.println("egg looted");
-					// Task.sleep(Random.nextInt(500, 1000));
-					// } else {
-					// gItem.interact("Take");
-					// Task.sleep(Random.nextInt(50, 100));
-					// }
-
-					int initialCount = Inventory.getCount(true, gItem.getId());
-					Camera.turnTo(gItem);
-					Camera.setPitch(Random.nextInt(45, 60));
-					Timer timer = new Timer(3000);
-					while (timer.isRunning()
-							&& initialCount == Inventory.getCount(true,
-									gItem.getId())) {
-						gItem.interact("Take", gItem.getGroundItem().getName());
-						Task.sleep(300, 500);
+				for (GroundItem gItem : GroundItems.getLoaded()) {
+					if (gItem.getId() == 223 && !Inventory.isFull()) {
+						System.out.println("Looting egg");
+						int initialCount = Inventory.getCount(true, gItem.getId());
+						Camera.turnTo(gItem);
+						Camera.setPitch(Random.nextInt(45, 60));
+						Timer timer = new Timer(3000);
+						while (timer.isRunning()
+								&& initialCount == Inventory.getCount(true,
+										gItem.getId())) {
+							gItem.interact("Take", gItem.getGroundItem().getName());
+							Task.sleep(300, 500);
+						}
+						EggsLooted++;
+						GoldEarned += (priceEgg);
 					}
-					EggsLooted++;
-					GoldEarned += (priceEgg);
-				}
 			}
+
 			System.out.println("Done looting ");
 		}
 	}
@@ -304,9 +292,6 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 				Summoning.select("Call Follower");
 				firstTime = false;
 			}
-			// Summoning.select("cast");
-			// Summoning.cast();
-
 			for (int i = 0; i < 3; i++) {
 				Widgets.get(747, 5).click(true);
 				Task.sleep(300);
@@ -326,14 +311,6 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 
 	public static int getTimeLeft() {
 		return Math.round((Settings.get(1786) / (float) 2.13333333333));
-	}
-
-	public void runTo(Tile[] path) {
-		for (Tile tile : path) {
-			Walking.walk(tile);
-			// or you could use on map
-			tile.clickOnMap();
-		}
 	}
 
 	public static boolean traverse(final Tile[] tiles, final boolean reverse) {
