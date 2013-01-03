@@ -104,6 +104,11 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 	public int loop() {
 		gpHr = (GoldEarned * 3600000D)
 				/ (int) (System.currentTimeMillis() - startTime);
+		//Failsafe for clan cup plaque
+		if (Widgets.get(205, 62).isOnScreen()){
+			Widgets.get(205, 62).click(true);
+		}
+		
 		if (jobs == null) {
 			jobs = new Tree(new Node[] { new Walk(), new Banking(), new Loot(),
 					new Recharge(), new Renew(), new Spawn() });
@@ -123,9 +128,9 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 		@Override
 		public boolean activate() {
 			// Conditie
-			return ((getSummoningPoints() > 0 && ObeliskArea.contains(Players
+			return ((getSummoningPoints() > 2 && ObeliskArea.contains(Players
 					.getLocal().getLocation()))
-					|| (getSummoningPoints() == 0 && !ObeliskArea
+					|| (getSummoningPoints() < 2 && !ObeliskArea
 							.contains(Players.getLocal().getLocation()))
 					|| (Inventory.getCount() == 1 && BankArea.contains(Players
 							.getLocal().getLocation())) || (isSummoned()
@@ -136,12 +141,12 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 		@Override
 		public void execute() {
 
-			if (getSummoningPoints() > 0
+			if (getSummoningPoints() >2
 					&& ObeliskArea.contains(Players.getLocal().getLocation())) {
 				traverse(RechargePath, false);
 				Task.sleep(500, 700);
 			}
-			if (getSummoningPoints() == 0) {
+			if (getSummoningPoints() < 2) {
 				System.out.println("Recharging");
 				traverse(RechargePath, true);
 				Task.sleep(500, 700);
@@ -174,7 +179,7 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 		@Override
 		public boolean activate() {
 			// Conditie
-			return (ObeliskArea.contains(Players.getLocal().getLocation()) && getSummoningPoints() == 0);
+			return (ObeliskArea.contains(Players.getLocal().getLocation()) && getSummoningPoints() < 2);
 
 		}
 
