@@ -13,6 +13,8 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.Rectangle;
 
+import org.powerbot.core.event.events.MessageEvent;
+import org.powerbot.core.event.listeners.MessageListener;
 import org.powerbot.core.event.listeners.PaintListener;
 import org.powerbot.core.script.ActiveScript;
 import org.powerbot.core.script.job.Task;
@@ -41,10 +43,11 @@ import org.powerbot.game.api.wrappers.node.GroundItem;
 import org.powerbot.game.api.wrappers.node.SceneObject;
 import org.powerbot.game.api.wrappers.widget.WidgetChild;
 import org.powerbot.game.api.methods.Settings;
+import org.powerbot.game.bot.Context;
 
 @Manifest(authors = "Snipa", name = "EggOmatic", version = 1.0)
 public class EggOmatic extends ActiveScript implements PaintListener,
-		MouseListener {
+		MouseListener, MessageListener {
 	// Area's
 	public final Area BankArea = new Area(new Tile[] { new Tile(3092, 3500, 0),
 			new Tile(3092, 3496, 0), new Tile(3098, 3496, 0),
@@ -73,11 +76,15 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 	public boolean hidePaint = false;
 	public boolean firstTime = false;
 	public boolean startedUp = false;
-	public Image background = getImage("http://i.imgur.com/LXxet.png");
+	public  final Image background = getImage("http://i.imgur.com/LXxet.png");
 	public Image button = getImage("http://i.imgur.com/a8pxI.png");
-	public Rectangle open = new Rectangle(486, 309, 50, 50);
+	public static final Rectangle open = new Rectangle(486, 309, 50, 50);
 	public Point p;
 	long startTime = System.currentTimeMillis();
+	
+	//Fonts
+	private static final  Font font1 = new Font("Algerian", 0, 16);
+	private static final  Font font2 = new Font("Algerian", 0, 16);
 
 	private Tree jobs = null;
 
@@ -101,14 +108,19 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 		startedUp = true;
 		System.out.println("Ready");
 	}
+	
+	public void onStop() {
+		Game.logout(true);
+	}
 
 	public int loop() {
 		gpHr = (GoldEarned * 3600000D)
 				/ (int) (System.currentTimeMillis() - startTime);
 
 		if (jobs == null) {
-			jobs = new Tree(new Node[] {new Failsafe(), new Walk(), new Banking(), new Loot(),
-					new Recharge(), new Renew(), new Spawn() });
+			jobs = new Tree(new Node[] { new Failsafe(), new Walk(),
+					new Banking(), new Loot(), new Recharge(), new Renew(),
+					new Spawn() });
 		}
 		final Node job = jobs.state();
 		if (job != null && startedUp) {
@@ -122,7 +134,6 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 
 	public class Walk extends Node {
 
-		@Override
 		public boolean activate() {
 			// Conditie
 			return ((getSummoningPoints() > 2 && ObeliskArea.contains(Players
@@ -135,7 +146,6 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 
 		}
 
-		@Override
 		public void execute() {
 
 			if (getSummoningPoints() > 2
@@ -174,14 +184,12 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 
 	public class Recharge extends Node {
 
-		@Override
 		public boolean activate() {
 			// Conditie
 			return (ObeliskArea.contains(Players.getLocal().getLocation()) && getSummoningPoints() < 2);
 
 		}
 
-		@Override
 		public void execute() {
 			System.out.println("rest");
 			SceneObject Stone = SceneEntities.getNearest(29954);
@@ -194,15 +202,14 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 
 	public class Banking extends Node {
 
-		@Override
 		public boolean activate() {
 			// Conditie
-			return (Inventory.isFull() && (SpawnArea.contains(Players.getLocal()
-					.getLocation())) || BankArea.contains(Players.getLocal()));
+			return (Inventory.isFull()
+					&& (SpawnArea.contains(Players.getLocal().getLocation())) || BankArea
+						.contains(Players.getLocal()));
 
 		}
 
-		@Override
 		public void execute() {
 			System.out.println("Banking");
 			SceneObject Booth = SceneEntities.getNearest(42377);
@@ -219,7 +226,6 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 
 	public class Renew extends Node {
 
-		@Override
 		public boolean activate() {
 			// Conditie
 			return (!isSummoned() && (SpawnArea.contains(Players.getLocal()
@@ -227,7 +233,6 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 
 		}
 
-		@Override
 		public void execute() {
 			System.out.println("Renewing familliar");
 			if (!(Inventory.getCount(12059) > 0)) {
@@ -248,7 +253,6 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 
 	public class Loot extends Node {
 
-		@Override
 		public boolean activate() {
 			// Conditie
 			return (GroundItems.getNearest(223) != null
@@ -257,7 +261,6 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 					.getLoaded(10, 223).length + Inventory.getCount() > 27)));
 		}
 
-		@Override
 		public void execute() {
 			System.out.println("Start looting ");
 			int temp = Inventory.getCount();
@@ -288,14 +291,12 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 
 	public class Spawn extends Node {
 
-		@Override
 		public boolean activate() {
 			// Conditie
 			return (isSummoned() && SpawnArea.contains(Players.getLocal()) && !Inventory
 					.isFull()) && Players.getLocal().getAnimation() == -1;
 		}
 
-		@Override
 		public void execute() {
 			System.out.println("Spawning");
 			if (firstTime) {
@@ -310,21 +311,20 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 		}
 
 	}
-	
-    public class Failsafe extends Node {
-    	 
-        @Override
-        public boolean activate() {
-                // Conditie
-                return (Widgets.get(205).validate());
-        }
 
-        @Override
-        public void execute() {
-               Widgets.get(205, 62).click(true);    
-        }
-       
-}
+	public class Failsafe extends Node {
+
+		public boolean activate() {
+			// Conditie
+			return (Widgets.get(205).validate());
+		}
+
+		public void execute() {
+			System.out.println("Widget is open!");
+			Widgets.get(205, 62).click(true);
+		}
+
+	}
 
 	public static int getSummoningPoints() {
 		final WidgetChild points = Widgets.get(747, 23);
@@ -386,8 +386,6 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 			g.drawString("Toggle paint", 440, 315);
 			if (!hidePaint) {
 				g.drawImage(background, 0, 385, null);
-				Font font1 = new Font("Algerian", 0, 16);
-				Font font2 = new Font("Algerian", 0, 20);
 
 				g.setColor(Color.red);
 				g.drawLine(Mouse.getX() - 5, Mouse.getY() - 5,
@@ -478,6 +476,15 @@ public class EggOmatic extends ActiveScript implements PaintListener,
 	public void mouseReleased(MouseEvent arg0) {
 		// TODO Auto-generated method stub
 
+	}
+
+	@Override
+	public void messageReceived(MessageEvent e) {
+
+		if (e.getMessage().contentEquals(
+				"You do not have enough scrolls to do that.")) {
+			Context.get().getScriptHandler().stop();
+		}
 	}
 
 }
